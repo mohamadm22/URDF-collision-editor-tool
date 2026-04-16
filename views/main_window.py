@@ -25,6 +25,7 @@ from views.shape_list_panel import ShapeListPanel
 from views.property_panel import PropertyPanel
 
 
+
 # ─────────────────────────────────────────────────────────────────────────────
 class MainWindow(QMainWindow):
     """Root application window."""

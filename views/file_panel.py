@@ -66,8 +66,8 @@ class FilePanel(QWidget):
             else:
                 item.setForeground(QColor("#99aabb"))
             self._list.addItem(item)
-        self._list.blockSignals(False)
         self._list.setCurrentRow(active_index)
+        self._list.blockSignals(False)
 
     def clear(self):
         self._list.clear()

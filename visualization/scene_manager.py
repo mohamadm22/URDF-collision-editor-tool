@@ -20,6 +20,7 @@ class SceneManager:
         self._shape_actors: dict = {}   # shape_id -> actor
         self._mesh_actor = None
         self._axes_visible = True
+        self._current_file_path: Optional[str] = None
 
         self._configure_plotter()
 
@@ -37,6 +38,9 @@ class SceneManager:
 
     def load_mesh(self, file_path: str) -> None:
         """Load and display an STL mesh, clearing prior mesh."""
+        if self._current_file_path == file_path:
+            return
+
         self._clear_mesh()
         try:
             mesh = pv.read(file_path)
@@ -51,9 +55,11 @@ class SceneManager:
                 name=_MESH_ACTOR_KEY,
                 lighting=True,
             )
+            self._current_file_path = file_path
             self.plotter.reset_camera()
         except Exception as e:
             print(f"[SceneManager] Failed to load mesh: {e}")
+            self._current_file_path = None
 
     def _clear_mesh(self):
         try:
@@ -61,6 +67,7 @@ class SceneManager:
         except Exception:
             pass
         self._mesh_actor = None
+        self._current_file_path = None
 
     # ------------------------------------------------------------------ #
     # Collision Shapes                                                     #
@@ -91,14 +98,13 @@ class SceneManager:
         self.plotter.render()
 
     def _clear_shapes(self):
-        """Forcefully remove any actor in the plotter that starts with 'shape_'."""
-        # We scan the plotter's internal registry to ensure nothing is missed
-        for name in list(self.plotter.actors.keys()):
-            if name.startswith("shape_"):
-                try:
-                    self.plotter.remove_actor(name, render=False)
-                except Exception:
-                    pass
+        """Remove all shape actors from the plotter."""
+        for shape_id in list(self._shape_actors.keys()):
+            name = f"shape_{shape_id}"
+            try:
+                self.plotter.remove_actor(name, render=False)
+            except Exception:
+                pass
         self._shape_actors.clear()
 
     def clear_all(self):

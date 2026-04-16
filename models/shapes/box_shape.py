@@ -6,6 +6,7 @@ import pyvista as pv
 from models.shapes.base_shape import BaseShape
 
 
+
 @dataclass
 class BoxShape(BaseShape):
     name: str = "Box"
