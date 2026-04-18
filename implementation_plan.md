@@ -94,10 +94,10 @@ urdf_collision_editor/
 │   ├── mesh_renderer.py         # STL mesh rendering
 │   └── shape_renderer.py        # Primitive shapes rendering
 │
-└── utils/
-    ├── __init__.py
-    ├── urdf_exporter.py         # URDF/XML generation helpers
-    └── project_io.py            # JSON save/load for project files
+├── utils/
+│   ├── __init__.py
+│   ├── urdf_modifier.py         # URDF XML injection and mesh matching logic
+│   └── project_io.py            # JSON save/load for project files
 ```
 
 ---
@@ -152,6 +152,7 @@ class ProjectState:
     meshes: list[MeshModel]    # Ordered list of all loaded STL files
     current_index: int          # Index of active file
     project_path: Optional[str] # Path to saved .json project file
+    urdf_path: Optional[str]    # Path to linked source URDF
     history: list               # Undo/redo command stack
 ```
 
@@ -167,10 +168,10 @@ class ProjectState:
 │ ─────────  │                            │    ───────────────     │
 │ > part1.stl│   [Interactive 3D mesh +  │  Shape: Cylinder_1    │
 │   part2.stl│    collision primitives]   │  ─────────────────    │
-│   part3.stl│                            │  Radius:  [0.04]      │
-│            │                            │  Length:  [0.40]      │
-│            │                            │  Pos X:   [0.00]      │
-│            │                            │  Pos Y:   [0.00]      │
+│            │                            │  Radius:  [0.04]      │
+│ 🤖 URDF     │                            │  Length:  [0.40]      │
+│ [part.urdf]│                            │  Pos X:   [0.00]      │
+│ [Browse]   │                            │  Pos Y:   [0.00]      │
 │            │                            │  Pos Z:   [0.20]      │
 │            │                            │  Roll:    [0.00]      │
 │            │                            │  Pitch:   [0.00]      │
@@ -304,12 +305,13 @@ Full URDF export wraps these inside a `<link>` element.
 - [ ] Trigger export dialog on "Finish"
 
 ### Phase 6 — Polish & Bonus Features (Day 10+)
-- [ ] Undo/redo command stack (Command Pattern)
+- [x] Undo/redo command stack (Command Pattern)
 - [ ] Shape color picker
 - [ ] Snap-to-mesh bounding box auto-fit tool
 - [ ] Visual transform gizmo (if using VTK directly)
-- [ ] Dark theme with Qt stylesheet (QSS)
-- [ ] Export directly into full URDF file
+- [x] Dark theme with Qt stylesheet (QSS)
+- [x] Export directly into full URDF file (via injection)
+- [x] Scale matching for injected collisions
 
 ---
 

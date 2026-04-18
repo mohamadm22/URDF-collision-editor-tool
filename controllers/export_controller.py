@@ -6,6 +6,7 @@ from __future__ import annotations
 import json
 import os
 from models.project_state import ProjectState
+from utils.urdf_modifier import generate_collision_urdf
 
 
 class ExportController:
@@ -55,10 +56,27 @@ class ExportController:
     # ------------------------------------------------------------------ #
 
     def export_all(self, directory: str, base_name: str = "collision_output") -> tuple:
-        """Export .txt and .json to the given directory. Returns (txt_path, json_path)."""
+        """Export .txt and .json to the given directory. Returns (txt_path, json_path, urdf_path)."""
         os.makedirs(directory, exist_ok=True)
         txt_path = os.path.join(directory, f"{base_name}.txt")
         json_path = os.path.join(directory, f"{base_name}.json")
         self.export_txt(txt_path)
         self.save_project(json_path)
-        return txt_path, json_path
+        
+        urdf_out = None
+        if self.state.urdf_path and os.path.exists(self.state.urdf_path):
+            urdf_name = os.path.basename(self.state.urdf_path).replace(".urdf", "_with_collision.urdf")
+            urdf_out = os.path.join(directory, urdf_name)
+            self.export_full_urdf_with_collision(urdf_out)
+            
+        return txt_path, json_path, urdf_out
+
+    def export_full_urdf_with_collision(self, output_path: str) -> str:
+        """Generates a new URDF with injected collision elements."""
+        if not self.state.urdf_path:
+            return ""
+        return generate_collision_urdf(
+            self.state.urdf_path,
+            self.state.meshes,
+            output_path
+        )

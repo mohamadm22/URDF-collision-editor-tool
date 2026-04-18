@@ -23,7 +23,7 @@ The **URDF Collision Editor** is a Python-based desktop application for creating
 The project follows a strict separation of concerns using the Model-View-Controller pattern.
 
 ### A. Model Layer (`models/`)
-- `project_state.py`: The single source of truth. Contains the list of all loaded meshes, the active mesh index, and the undo/redo stacks.
+- `project_state.py`: The single source of truth. Contains the list of all loaded meshes, the active mesh index, the linked URDF path, and the undo/redo stacks.
 - `mesh_model.py`: Represents one STL file. Stores the file path and a list of collision shapes associated with it.
 - `shapes/`:
     - `base_shape.py`: Abstract base class. Defines world-frame position, degree-based orientation, and common export logic.
@@ -40,6 +40,7 @@ The project follows a strict separation of concerns using the Model-View-Control
 - `shape_list_panel.py`: Bottom-middle panel. Shows shapes for the current file with Add/Delete buttons.
 - `property_panel.py`: Right sidebar. Dynamically generates input fields based on the selected shape type.
 - `visualization/scene_manager.py`: The bridge between the Model and the PyVista renderer.
+- `utils/urdf_modifier.py`: Core logic for parsing URDF files, matching meshes to links, and performing XML injection with automatic scaling based on visual mesh properties.
 
 ---
 
@@ -75,7 +76,7 @@ These are historical issues that were fixed and represent "gotchas" in the codeb
 
 - **Snap-to-Mesh:** Currently, shapes must be positioned manually. An auto-fitting or snapping algorithm would be a valuable extension.
 - **Transform Gizmo:** Direct 3D manipulation of shapes using a mouse would improve UX.
-- **Full URDF Export:** Currently exports snippets; needs logic to generate a full valid `.urdf` file with link name placeholders.
+- **Bulk Scaling:** Ability to scale all shapes for a specific mesh at once inside the editor UI.
 
 ---
 

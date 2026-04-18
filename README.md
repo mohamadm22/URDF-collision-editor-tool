@@ -9,7 +9,9 @@ A professional Python desktop application for creating and editing URDF collisio
 - **Interactive 3D View**: Real-time visualization of meshes and collision primitives using PyVista.
 - **Precision Editing**: Fine-grained control over position (metres) and orientation (degrees).
 - **Undo/Redo System**: Full history support for all shape modifications.
-- **URDF Export**: Generates XML collision snippets and saves full project state to JSON.
+- **URDF Export**: Generates XML collision snippets.
+- **URDF Collision Injection**: Automatically injects collision primitives into an existing URDF file, matching links by mesh path and respecting mesh scales.
+- **Full Project Persistence**: Saves and loads the entire workspace (STLs, shapes, transforms, and linked URDF) to JSON.
 
 ---
 
@@ -59,7 +61,8 @@ The application includes robust handling for common PyVista/Qt integration chall
 
 ## 📖 How to Use
 1.  **Open STL**: Use `File > Open STL Files` to load your meshes.
-2.  **Add Shapes**: Select a mesh from the left panel and click `+ Add Shape` in the middle panel.
-3.  **Refine**: Select the shape to adjust its dimensions, position, and rotation in the right panel.
-4.  **Navigate**: Use the `Previous` / `Next` buttons to process multiple files.
-5.  **Export**: Click `Finish` to save the URDF snippets and project data.
+2.  **Link URDF (Optional)**: In the left sidebar, click `Browse URDF` to select an existing robot description file.
+3.  **Add Shapes**: Select a mesh from the left panel and click `+ Add Shape` in the middle panel.
+4.  **Refine**: Select the shape to adjust its dimensions, position, and rotation in the right panel.
+5.  **Navigate**: Use the `Previous` / `Next` buttons to process multiple files.
+6.  **Export**: Click `Finish` to save URDF snippets, the project JSON, and a modified URDF with collisions injected.

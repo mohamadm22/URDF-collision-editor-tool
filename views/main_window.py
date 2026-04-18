@@ -194,6 +194,7 @@ class MainWindow(QMainWindow):
 
         # FilePanel → navigate
         self._file_panel.file_selected.connect(self._file_ctrl.navigate_to)
+        self._file_panel.urdf_selected.connect(self._on_urdf_selected)
 
         # ShapeListPanel → controllers
         self._shape_list.add_shape_requested.connect(self._on_add_shape)
@@ -238,6 +239,8 @@ class MainWindow(QMainWindow):
             self._state.meshes = new_state.meshes
             self._state.current_index = new_state.current_index
             self._state.project_path = new_state.project_path
+            self._state.urdf_path = new_state.urdf_path
+            self._file_panel.set_urdf_path(self._state.urdf_path)
             self._file_ctrl._emit_changed()
             self._status.showMessage(f"Project loaded ← {path}", 5000)
 
@@ -250,6 +253,7 @@ class MainWindow(QMainWindow):
 
         # Update file panel
         self._file_panel.refresh(self._state.meshes, index)
+        self._file_panel.set_urdf_path(self._state.urdf_path)
 
         # Update progress label
         self._progress_label.setText(f"File {index + 1} / {total}   —   {mesh.name}")
@@ -316,6 +320,11 @@ class MainWindow(QMainWindow):
             self._shape_list.refresh(mesh.shapes)
             self._scene.update_shapes(mesh.shapes, self._selected_shape_id)
         self._file_panel.refresh(self._state.meshes, self._state.current_index)
+        self._file_panel.set_urdf_path(self._state.urdf_path)
+
+    def _on_urdf_selected(self, path: str):
+        self._state.urdf_path = path
+        self._status.showMessage(f"Linked URDF: {path}")
 
     # ──────────────────────────────────────────────────────────────────
     # Navigation slots                                                   #
@@ -337,16 +346,19 @@ class MainWindow(QMainWindow):
         if not directory:
             return
         try:
-            txt_path, json_path = self._export_ctrl.export_all(directory)
-            QMessageBox.information(
-                self,
-                "Export Complete",
-                f"✅ Export successful!\n\n"
-                f"URDF snippets → {txt_path}\n"
-                f"Project file  → {json_path}",
-            )
+            txt_p, json_p, urdf_p = self._export_ctrl.export_all(directory)
+            
+            msg = f"✅ Export successful!\n\n"
+            msg += f"URDF snippets → {os.path.basename(txt_p)}\n"
+            msg += f"Project file  → {os.path.basename(json_p)}"
+            if urdf_p:
+                msg += f"\nModified URDF → {os.path.basename(urdf_p)}"
+            
+            QMessageBox.information(self, "Export Complete", msg)
             self._status.showMessage(f"Exported to {directory}", 8000)
         except Exception as e:
+            import traceback
+            traceback.print_exc()
             QMessageBox.critical(self, "Export Error", str(e))
 
     # ──────────────────────────────────────────────────────────────────

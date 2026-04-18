@@ -15,6 +15,7 @@ class ProjectState:
     meshes: list = field(default_factory=list)   # list[MeshModel]
     current_index: int = 0
     project_path: Optional[str] = None
+    urdf_path: Optional[str] = None
 
     # Undo / redo stacks store deep-copy snapshots of meshes list
     _undo_stack: list = field(default_factory=list, repr=False)
@@ -83,10 +84,14 @@ class ProjectState:
         return {
             "current_index": self.current_index,
             "meshes": [m.to_dict() for m in self.meshes],
+            "urdf_path": self.urdf_path,
         }
 
     @classmethod
     def from_dict(cls, d: dict) -> "ProjectState":
-        obj = cls(current_index=d.get("current_index", 0))
+        obj = cls(
+            current_index=d.get("current_index", 0),
+            urdf_path=d.get("urdf_path")
+        )
         obj.meshes = [MeshModel.from_dict(md) for md in d.get("meshes", [])]
         return obj
