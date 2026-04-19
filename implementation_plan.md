@@ -97,6 +97,7 @@ urdf_collision_editor/
 ├── utils/
 │   ├── __init__.py
 │   ├── urdf_modifier.py         # URDF XML injection and mesh matching logic
+│   ├── urdf_parser.py           # URDF parsing and mesh discovery logic
 │   └── project_io.py            # JSON save/load for project files
 ```
 
@@ -312,6 +313,8 @@ Full URDF export wraps these inside a `<link>` element.
 - [x] Dark theme with Qt stylesheet (QSS)
 - [x] Export directly into full URDF file (via injection)
 - [x] Scale matching for injected collisions
+- [x] Automatic mesh discovery from URDF
+- [x] Smart ROS package path resolution
 
 ---
 

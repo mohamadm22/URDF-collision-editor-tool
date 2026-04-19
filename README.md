@@ -11,6 +11,7 @@ A professional Python desktop application for creating and editing URDF collisio
 - **Undo/Redo System**: Full history support for all shape modifications.
 - **URDF Export**: Generates XML collision snippets.
 - **URDF Collision Injection**: Automatically injects collision primitives into an existing URDF file, matching links by mesh path and respecting mesh scales.
+- **Smart Mesh Auto-Import**: Select a URDF and the program automatically loads all associated STL meshes. Includes smart path resolution for ROS `package://` protocols with automatic sibling directory discovery.
 - **Full Project Persistence**: Saves and loads the entire workspace (STLs, shapes, transforms, and linked URDF) to JSON.
 
 ---
@@ -60,9 +61,9 @@ The application includes robust handling for common PyVista/Qt integration chall
 ---
 
 ## 📖 How to Use
-1.  **Open STL**: Use `File > Open STL Files` to load your meshes.
-2.  **Link URDF (Optional)**: In the left sidebar, click `Browse URDF` to select an existing robot description file.
+1.  **Open STL or URDF**: Load existing meshes manually or select `Browse URDF` in the left sidebar to automatically import all STL files from a robot description.
+2.  **Resolve Packages**: If using ROS `package://` paths, the tool will attempt to resolve them automatically using sibling `/meshes` directory heuristics. If discovery fails, you will be prompted for a package root.
 3.  **Add Shapes**: Select a mesh from the left panel and click `+ Add Shape` in the middle panel.
-4.  **Refine**: Select the shape to adjust its dimensions, position, and rotation in the right panel.
+4.  **Refine**: Select the shape to adjust its dimensions, position, and rotation in the right panel. All edits are applied in the context of the mesh's URDF scale.
 5.  **Navigate**: Use the `Previous` / `Next` buttons to process multiple files.
 6.  **Export**: Click `Finish` to save URDF snippets, the project JSON, and a modified URDF with collisions injected.

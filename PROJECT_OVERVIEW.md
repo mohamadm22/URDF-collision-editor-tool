@@ -40,7 +40,8 @@ The project follows a strict separation of concerns using the Model-View-Control
 - `shape_list_panel.py`: Bottom-middle panel. Shows shapes for the current file with Add/Delete buttons.
 - `property_panel.py`: Right sidebar. Dynamically generates input fields based on the selected shape type.
 - `visualization/scene_manager.py`: The bridge between the Model and the PyVista renderer.
-- `utils/urdf_modifier.py`: Core logic for parsing URDF files, matching meshes to links, and performing XML injection with automatic scaling based on visual mesh properties.
+- `utils/urdf_modifier.py`: Core logic for parsing URDF files, matching meshes to links, and performing XML injection with automatic scaling.
+- `utils/urdf_parser.py`: Parser for automatic mesh discovery from URDF. Implements smart `package://` resolution with heuristics for ROS package sibling directory structures.
 
 ---
 
@@ -50,6 +51,7 @@ The project follows a strict separation of concerns using the Model-View-Control
 - **Orientation:** Displayed in **Degrees (Roll/Pitch/Yaw)** for human-friendliness but exported as **Radians** for URDF compatibility.
 - **Batched Rendering:** All 3D updates use `render=False` for intermediate steps and a single `plotter.render()` at the end of an action to ensure high performance.
 - **Actor Management:** `SceneManager` stores actual `vtkActor` objects (not name strings) to ensure reliable removal and to avoid ghost objects persisting across file switches.
+- **Smart Path Resolution:** The tool intelligently infers ROS package structures. If a URDF is in a `/urdf` folder, it automatically searches for meshes in the sibling `/meshes` folder before prompting the user for manual root paths.
 
 ---
 

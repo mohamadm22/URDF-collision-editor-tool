@@ -268,7 +268,7 @@ class MainWindow(QMainWindow):
         )
 
         # Load mesh into 3D viewer
-        self._scene.load_mesh(mesh.file_path)
+        self._scene.load_mesh(mesh.file_path, scale=mesh.urdf_scale)
         self._scene.update_shapes(mesh.shapes, self._selected_shape_id)
 
         # Shape list
@@ -325,6 +325,48 @@ class MainWindow(QMainWindow):
     def _on_urdf_selected(self, path: str):
         self._state.urdf_path = path
         self._status.showMessage(f"Linked URDF: {path}")
+        
+        # Trigger Auto-Import
+        self._run_urdf_import(path)
+
+    def _run_urdf_import(self, urdf_path: str, pkg_root: str = None):
+        res = self._file_ctrl.import_urdf_meshes(urdf_path, pkg_root)
+        
+        if res.get("error"):
+            QMessageBox.critical(self, "URDF Import Error", res["error"])
+            return
+
+        if res.get("needs_package_root"):
+            QMessageBox.warning(
+                self, 
+                "Package Root Required",
+                "Some meshes with 'package://' paths could not be found automatically in the sibling '/meshes' directory.\n\n"
+                "Please select the base directory for the package(s) so the program can find them."
+            )
+            root = QFileDialog.getExistingDirectory(self, "Select Package Root Directory")
+            if root:
+                # Retry with root
+                self._run_urdf_import(urdf_path, root)
+            return
+
+        # Show summary
+        added = res.get("added", 0)
+        skipped = res.get("skipped_duplicate", 0)
+        missing = res.get("missing_file", [])
+        
+        msg = f"URDF Mesh Import Complete:\n\n"
+        msg += f"✅ Added: {added}\n"
+        if skipped > 0:
+            msg += f"⏭ Skipped (Duplicates): {skipped}\n"
+        if missing:
+            msg += f"❌ Missing Files: {len(missing)}\n"
+            for m in missing[:5]: # Show first 5
+                msg += f"   - {os.path.basename(m)}\n"
+            if len(missing) > 5:
+                msg += "   ... and more\n"
+        
+        if added > 0 or missing or skipped > 0:
+            QMessageBox.information(self, "Import Summary", msg)
 
     # ──────────────────────────────────────────────────────────────────
     # Navigation slots                                                   #

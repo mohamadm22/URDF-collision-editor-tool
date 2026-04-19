@@ -21,6 +21,7 @@ class SceneManager:
         self._mesh_actor = None
         self._axes_visible = True
         self._current_file_path: Optional[str] = None
+        self._current_cache_key: Optional[tuple] = None
 
         self._configure_plotter()
 
@@ -36,15 +37,22 @@ class SceneManager:
     # STL Mesh                                                             #
     # ------------------------------------------------------------------ #
 
-    def load_mesh(self, file_path: str) -> None:
+    def load_mesh(self, file_path: str, scale: list[float] = [1.0, 1.0, 1.0]) -> None:
         """Load and display an STL mesh, clearing prior mesh."""
-        if self._current_file_path == file_path:
+        # Use scale in cache key because the same file can be loaded with different scales
+        cache_key = (file_path, tuple(scale))
+        if self._current_cache_key == cache_key:
             return
 
         self._clear_mesh()
         try:
             mesh = pv.read(file_path)
             mesh = mesh.clean()
+            
+            # Apply URDF scale if not [1,1,1]
+            if any(s != 1.0 for s in scale):
+                mesh.scale(scale, inplace=True)
+                
             mesh.compute_normals(inplace=True)
             self._mesh_actor = self.plotter.add_mesh(
                 mesh,
@@ -55,10 +63,12 @@ class SceneManager:
                 name=_MESH_ACTOR_KEY,
                 lighting=True,
             )
+            self._current_cache_key = cache_key
             self._current_file_path = file_path
             self.plotter.reset_camera()
         except Exception as e:
             print(f"[SceneManager] Failed to load mesh: {e}")
+            self._current_cache_key = None
             self._current_file_path = None
 
     def _clear_mesh(self):

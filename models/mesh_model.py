@@ -13,6 +13,8 @@ from models.shapes import SHAPE_REGISTRY
 class MeshModel:
     file_path: str
     shapes: list = field(default_factory=list)   # list[BaseShape]
+    urdf_scale: list[float] = field(default_factory=lambda: [1.0, 1.0, 1.0])
+    source: str = "manual"  # "manual" or "urdf"
 
     @property
     def name(self) -> str:
@@ -43,11 +45,17 @@ class MeshModel:
         return {
             "file_path": self.file_path,
             "shapes": [s.to_dict() for s in self.shapes],
+            "urdf_scale": self.urdf_scale,
+            "source": self.source,
         }
 
     @classmethod
     def from_dict(cls, d: dict) -> "MeshModel":
-        obj = cls(file_path=d["file_path"])
+        obj = cls(
+            file_path=d["file_path"],
+            urdf_scale=d.get("urdf_scale", [1.0, 1.0, 1.0]),
+            source=d.get("source", "manual")
+        )
         for sd in d.get("shapes", []):
             klass = SHAPE_REGISTRY.get(sd["type"])
             if klass:
