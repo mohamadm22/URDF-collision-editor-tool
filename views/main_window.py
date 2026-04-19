@@ -24,6 +24,11 @@ from views.file_panel import FilePanel
 from views.shape_list_panel import ShapeListPanel
 from views.property_panel import PropertyPanel
 
+from controllers.robot_controller import RobotController
+from visualization.robot_scene_manager import RobotSceneManager
+from views.robot_viewer_panel import RobotViewerPanel
+from pyvistaqt import QtInteractor
+
 
 
 # ─────────────────────────────────────────────────────────────────────────────
@@ -43,6 +48,7 @@ class MainWindow(QMainWindow):
         self._file_ctrl = FileController(self._state, parent=self)
         self._shape_ctrl = ShapeController(self._state)
         self._export_ctrl = ExportController(self._state)
+        self._robot_ctrl = RobotController(parent=self)
 
         # ── State for selected shape ───────────────────────────────────
         self._selected_shape_id: str | None = None
@@ -84,6 +90,8 @@ class MainWindow(QMainWindow):
 
         view_menu = mb.addMenu("&View")
         view_menu.addAction(self._action("🎥  Reset Camera", "R", self._on_reset_camera))
+        if hasattr(self, "_robot_panel"):
+            view_menu.addAction(self._robot_panel.toggleViewAction())
 
     def _action(self, label, shortcut, slot) -> QAction:
         a = QAction(label, self)
@@ -136,11 +144,18 @@ class MainWindow(QMainWindow):
         h_splitter.setSizes([180, 900, 260])
         root.addWidget(h_splitter, 1)
 
+        # ── Robot Viewer Dock ──────────────────────────────────────────
+        self._robot_plotter = QtInteractor(self)
+        self._robot_panel = RobotViewerPanel(self._robot_plotter)
+        self.addDockWidget(Qt.DockWidgetArea.RightDockWidgetArea, self._robot_panel)
+        self._robot_panel.setVisible(False)
+
         # ── Bottom navigation bar ──────────────────────────────────────
         root.addWidget(self._build_nav_bar())
 
-        # ── Scene manager ──────────────────────────────────────────────
+        # ── Scene managers ─────────────────────────────────────────────
         self._scene = SceneManager(self._plotter)
+        self._robot_scene = RobotSceneManager(self._robot_plotter)
 
     def _build_nav_bar(self) -> QWidget:
         bar = QWidget()
@@ -204,6 +219,15 @@ class MainWindow(QMainWindow):
         # PropertyPanel → ShapeController
         self._prop_panel.shape_updated.connect(self._on_shape_params_changed)
 
+        # RobotController signals
+        self._robot_ctrl.robot_loaded.connect(self._on_robot_loaded)
+        self._robot_ctrl.robot_load_failed.connect(self._on_robot_load_failed)
+        self._robot_ctrl.robot_cleared.connect(self._robot_scene.clear_robot)
+        self._robot_ctrl.package_root_required.connect(self._on_robot_package_root_required)
+        
+        # RobotViewerPanel → RobotController
+        self._robot_panel.frame_changed.connect(self._robot_ctrl.set_base_frame)
+
     # ──────────────────────────────────────────────────────────────────
     # File slots                                                         #
     # ──────────────────────────────────────────────────────────────────
@@ -242,6 +266,11 @@ class MainWindow(QMainWindow):
             self._state.urdf_path = new_state.urdf_path
             self._file_panel.set_urdf_path(self._state.urdf_path)
             self._file_ctrl._emit_changed()
+            
+            # Auto-trigger robot viewer if URDF is linked
+            if self._state.urdf_path:
+                self._robot_ctrl.load_urdf(self._state.urdf_path)
+                
             self._status.showMessage(f"Project loaded ← {path}", 5000)
 
     # ──────────────────────────────────────────────────────────────────
@@ -367,6 +396,33 @@ class MainWindow(QMainWindow):
         
         if added > 0 or missing or skipped > 0:
             QMessageBox.information(self, "Import Summary", msg)
+            
+        # Also trigger Robot Visual Viewer
+        self._robot_ctrl.load_urdf(urdf_path)
+
+    def _on_robot_loaded(self, model: RobotModel, transforms: dict):
+        self._robot_scene.render_robot(model, transforms)
+        self._robot_panel.update_model(model)
+        self._robot_panel.setVisible(True)
+        
+        if model.load_warnings:
+            # Maybe don't show all warnings in a popup if too many, but definitely some feedback
+            print(f"Robot loaded with {len(model.load_warnings)} warnings")
+
+    def _on_robot_load_failed(self, error: str):
+        QMessageBox.critical(self, "Robot Viewer Error", f"Failed to load robot visualization:\n{error}")
+        self._robot_panel.setVisible(False)
+
+    def _on_robot_package_root_required(self, urdf_path: str):
+        QMessageBox.information(
+            self, 
+            "Package Root Required for Viewer",
+            "The Robot Viewer needs a package root to resolve some visual meshes.\n"
+            "Please select the base directory for the package(s)."
+        )
+        root = QFileDialog.getExistingDirectory(self, "Select Package Root Directory")
+        if root:
+            self._robot_ctrl.load_urdf(urdf_path, root)
 
     # ──────────────────────────────────────────────────────────────────
     # Navigation slots                                                   #
