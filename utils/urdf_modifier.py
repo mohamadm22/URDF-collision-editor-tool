@@ -6,6 +6,7 @@ from models.mesh_model import MeshModel
 from models.shapes.box_shape import BoxShape
 from models.shapes.cylinder_shape import CylinderShape
 from models.shapes.sphere_shape import SphereShape
+from models.shapes.stl_shape import StlShape
 
 def generate_collision_urdf(
     original_urdf_path: str,
@@ -76,12 +77,13 @@ def generate_collision_urdf(
             # Create a copy so we don't modify the original state
             s = copy.deepcopy(shape)
             
-            # Apply scale to position
+            # Export Rule: Multiply position by original URDF visual scale (sx, sy, sz)
+            # This ensures the collision origin remains aligned with the visual mesh in URDF space.
             s.position[0] *= sx
             s.position[1] *= sy
             s.position[2] *= sz
             
-            # Apply scale to geometry
+            # Additional geometry scaling for primitives
             if isinstance(s, BoxShape):
                 s.size_x *= sx
                 s.size_y *= sy
@@ -93,6 +95,8 @@ def generate_collision_urdf(
             elif isinstance(s, SphereShape):
                 # Using max of all scales for radius
                 s.radius *= max(sx, sy, sz)
+            # Note: StlShape multiplication (user_scale * urdf_visual_scale)
+            # is handled internally by StlShape.to_urdf_geometry().
             
             # Generate XML snippet
             collision_xml_str = s.to_urdf_collision()

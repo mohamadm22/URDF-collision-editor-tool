@@ -11,11 +11,12 @@ from PyQt6.QtCore import pyqtSignal, Qt
 from PyQt6.QtGui import QFont, QColor, QIcon
 
 
-_SHAPE_ICON = {"CylinderShape": "⬤", "BoxShape": "■", "SphereShape": "●"}
+_SHAPE_ICON = {"CylinderShape": "⬤", "BoxShape": "■", "SphereShape": "●", "StlShape": "🔷"}
 _SHAPE_COLOR = {
     "CylinderShape": "#4a9eff",
     "BoxShape": "#4aff88",
     "SphereShape": "#ff9944",
+    "StlShape": "#4aff88",
 }
 
 

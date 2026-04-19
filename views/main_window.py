@@ -296,8 +296,8 @@ class MainWindow(QMainWindow):
             self._finish_style() if is_last else self._next_style()
         )
 
-        # Load mesh into 3D viewer
-        self._scene.load_mesh(mesh.file_path, scale=mesh.urdf_scale)
+        # Load mesh into 3D viewer - Always normalized display scale 1
+        self._scene.load_mesh(mesh.file_path, scale=[1.0, 1.0, 1.0])
         self._scene.update_shapes(mesh.shapes, self._selected_shape_id)
 
         # Shape list

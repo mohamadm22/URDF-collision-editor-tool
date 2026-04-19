@@ -5,10 +5,12 @@ Emits Qt signals consumed by the MainWindow.
 
 from __future__ import annotations
 import os
+import math
 from PyQt6.QtCore import QObject, pyqtSignal
 from models.project_state import ProjectState
 from models.mesh_model import MeshModel
-from utils.urdf_parser import extract_meshes_from_urdf
+from models.shapes.stl_shape import StlShape
+from utils.urdf_parser import extract_meshes_from_urdf, extract_collision_shapes_from_urdf
 
 
 class FileController(QObject):
@@ -72,9 +74,83 @@ class FileController(QObject):
             summary["added"] += 1
 
         if summary["added"] > 0:
+            # Attach collision shapes for newly added or existing meshes
+            self._attach_collision_shapes(urdf_path, package_root)
             self._emit_changed()
 
         return summary
+
+    def _attach_collision_shapes(self, urdf_path: str, package_root: str = None) -> None:
+        """Parse URDF for collision meshes and attach them to corresponding MeshModels."""
+        try:
+            collision_data = extract_collision_shapes_from_urdf(urdf_path, package_root)
+        except Exception:
+            return
+
+        # Prepare basename lookup for our loaded MeshModels
+        # link visuals in URDF usually point to meshes via package://pkg/meshes/file.stl
+        # our MeshModels store the resolved absolute path
+        # we'll match by file basename to be robust
+        mesh_lookup = {os.path.basename(m.file_path): m for m in self.state.meshes}
+
+        # We also need to know which link uses which visual mesh in the URDF 
+        # to correctly associate collision shapes (which are per-link) with our MeshModels.
+        try:
+            visual_mesh_data = extract_meshes_from_urdf(urdf_path, package_root)
+        except Exception:
+            return
+
+        # Map link names to visual mesh basenames
+        # Note: URDF parsing above doesn't preserve link name in extract_meshes_from_urdf
+        # I should probably update extract_meshes_from_urdf to include link_name,
+        # but I can also just re-parse here or assume a simpler mapping if possible.
+        # Actually, let's fix extract_meshes_from_urdf to include link name for better matching.
+        # Wait, I'll just do a quick parse here to get the link -> visual mapping.
+        from lxml import etree
+        try:
+            tree = etree.parse(urdf_path)
+            root = tree.getroot()
+            link_to_visual_base = {}
+            for link in root.xpath("//link"):
+                lname = link.get("name")
+                vmesh = link.xpath(".//visual//geometry//mesh")
+                if lname and vmesh:
+                    fname = vmesh[0].get("filename")
+                    if fname:
+                        link_to_visual_base[lname] = os.path.basename(fname)
+        except Exception:
+            return
+
+        for link_name, shapes in collision_data.items():
+            visual_base = link_to_visual_base.get(link_name)
+            if not visual_base:
+                continue
+                
+            mesh_model = mesh_lookup.get(visual_base)
+            if not mesh_model:
+                continue
+
+            for s_data in shapes:
+                if not s_data["is_resolved"]:
+                    continue
+                    
+                # Deduplication
+                path = s_data["resolved_path"]
+                if any(isinstance(s, StlShape) and s.stl_path == path for s in mesh_model.shapes):
+                    continue
+
+                stl_shape = StlShape(
+                    name=f"STL_{os.path.basename(path)}",
+                    stl_path=path,
+                    raw_urdf_path=s_data["raw_path"],
+                    urdf_visual_scale=mesh_model.urdf_scale,
+                    scale=[1.0, 1.0, 1.0] # Default user scale
+                )
+                stl_shape.position = s_data["origin_xyz"]
+                rpy_rad = s_data["origin_rpy"]
+                stl_shape.orientation_deg = [math.degrees(r) for r in rpy_rad]
+                
+                mesh_model.add_shape(stl_shape)
 
     def _is_duplicate(self, file_path: str) -> bool:
         """Check if mesh is already loaded by filename or path."""

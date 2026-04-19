@@ -49,9 +49,8 @@ class SceneManager:
             mesh = pv.read(file_path)
             mesh = mesh.clean()
             
-            # Apply URDF scale if not [1,1,1]
-            if any(s != 1.0 for s in scale):
-                mesh.scale(scale, inplace=True)
+            # REMOVED: Automatic URDF scaling for display. 
+            # We now show the mesh at normalized scale 1.0.
                 
             mesh.compute_normals(inplace=True)
             self._mesh_actor = self.plotter.add_mesh(

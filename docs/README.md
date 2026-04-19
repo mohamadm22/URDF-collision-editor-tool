@@ -6,12 +6,14 @@ A professional Python desktop application for creating and editing URDF collisio
 
 ## 🚀 Key Features
 - **Multi-STL Management**: Load and navigate through multiple STL files in one session.
-- **Interactive 3D View**: Real-time visualization of meshes and collision primitives using PyVista.
+- **Interactive 3D View**: Real-time visualization of meshes and collision geometry using PyVista.
+- **Support for STL Collisions**: Automatically import STL-based collision meshes from URDF. Edit their path, scale, and transform just like primitives.
 - **Precision Editing**: Fine-grained control over position (metres) and orientation (degrees).
+- **Normalized Scaling System**: Work in a clean "normalized" editor at scale 1.0. The tool automatically handles URDF visual scaling internally during export.
 - **Undo/Redo System**: Full history support for all shape modifications.
 - **URDF Export**: Generates XML collision snippets.
-- **URDF Collision Injection**: Automatically injects collision primitives into an existing URDF file, matching links by mesh path and respecting mesh scales.
-- **Smart Mesh Auto-Import**: Select a URDF and the program automatically loads all associated STL meshes. Includes smart path resolution for ROS `package://` protocols with automatic sibling directory discovery.
+- **URDF Collision Injection**: Automatically injects collision primitives and STL meshes into an existing URDF file, matching links by mesh path and respecting original visual scales.
+- **Smart Mesh Auto-Import**: Select a URDF and the program automatically loads all associated visual and collision STL meshes. Includes smart path resolution for ROS `package://` protocols.
 - **Full Project Persistence**: Saves and loads the entire workspace (STLs, shapes, transforms, and linked URDF) to JSON.
 
 ---
@@ -25,7 +27,7 @@ The project follows a clean Model-View-Controller architecture for scalability a
 - **`MeshModel`**: Represents a single STL file and its associated collection of collision shapes.
 - **Shapes (`models/shapes/`)**: 
     - `BaseShape`: Abstract base defining spatial properties and URDF serialization logic.
-    - `BoxShape`, `CylinderShape`, `SphereShape`: Concrete primitive implementations.
+    - `BoxShape`, `CylinderShape`, `SphereShape`, `StlShape`: Concrete geometry implementations.
 
 ### 2. Controller Layer (`controllers/`)
 - **`FileController`**: Handles STL loading, navigation logic, and file-system interactions.

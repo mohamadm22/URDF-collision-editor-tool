@@ -6,7 +6,7 @@ from __future__ import annotations
 from PyQt6.QtWidgets import (
     QWidget, QVBoxLayout, QHBoxLayout, QLabel, QDoubleSpinBox,
     QLineEdit, QPushButton, QFrame, QScrollArea, QSizePolicy,
-    QGroupBox,
+    QGroupBox, QFileDialog,
 )
 from PyQt6.QtCore import pyqtSignal, Qt
 from PyQt6.QtGui import QFont
@@ -14,6 +14,7 @@ from models.shapes.base_shape import BaseShape
 from models.shapes.cylinder_shape import CylinderShape
 from models.shapes.box_shape import BoxShape
 from models.shapes.sphere_shape import SphereShape
+from models.shapes.stl_shape import StlShape
 
 
 class _FieldSpinBox(QDoubleSpinBox):
@@ -128,6 +129,32 @@ class PropertyPanel(QWidget):
         elif isinstance(shape, SphereShape):
             dim_fields = [
                 ("Radius (m)", self._make_spin("radius", shape.radius, 0.0001, 1e6, 0.001)),
+            ]
+        elif isinstance(shape, StlShape):
+            # STL Path with browse button
+            path_row = self._make_line_edit("stl_path", shape.stl_path)
+            browse_btn = QPushButton("...")
+            browse_btn.setFixedWidth(30)
+            browse_btn.clicked.connect(self._on_browse_stl)
+            
+            # Pack browse button and path in a layout
+            path_host = QWidget()
+            path_lay = QHBoxLayout(path_host)
+            path_lay.setContentsMargins(0, 0, 0, 0)
+            path_lay.setSpacing(2)
+            path_lay.addWidget(path_row, 1)
+            path_lay.addWidget(browse_btn)
+            
+            self._add_group("Collision Mesh", [
+                ("STL Path", path_host),
+            ])
+            
+            # User scale fields
+            sx, sy, sz = shape.scale
+            dim_fields = [
+                ("Scale X", self._make_spin("scale_x", sx, 0.0001, 1e6, 0.001)),
+                ("Scale Y", self._make_spin("scale_y", sy, 0.0001, 1e6, 0.001)),
+                ("Scale Z", self._make_spin("scale_z", sz, 0.0001, 1e6, 0.001)),
             ]
         self._add_group("Dimensions", dim_fields)
 
@@ -249,4 +276,20 @@ class PropertyPanel(QWidget):
             if key in self._fields:
                 params[key] = self._fields[key].value()
 
+        # STL specific
+        if "stl_path" in self._fields:
+            params["stl_path"] = self._fields["stl_path"].text().strip()
+        
+        if "scale_x" in self._fields:
+            params["scale"] = [
+                self._fields["scale_x"].value(),
+                self._fields["scale_y"].value(),
+                self._fields["scale_z"].value()
+            ]
+
         self.shape_updated.emit(self._current_shape.id, params)
+
+    def _on_browse_stl(self):
+        path, _ = QFileDialog.getOpenFileName(self, "Select STL Collision Mesh", "", "STL Files (*.stl);;All Files (*)")
+        if path:
+            self._fields["stl_path"].setText(path)
