@@ -37,10 +37,10 @@ class SceneManager:
     # STL Mesh                                                             #
     # ------------------------------------------------------------------ #
 
-    def load_mesh(self, file_path: str, scale: list[float] = [1.0, 1.0, 1.0]) -> None:
+    def load_mesh(self, file_path: str, scale: list[float] = [1.0, 1.0, 1.0], orientation_rpy: list[float] = [0.0, 0.0, 0.0]) -> None:
         """Load and display an STL mesh, clearing prior mesh."""
-        # Use scale in cache key because the same file can be loaded with different scales
-        cache_key = (file_path, tuple(scale))
+        # Use scale and orientation in cache key
+        cache_key = (file_path, tuple(scale), tuple(orientation_rpy))
         if self._current_cache_key == cache_key:
             return
 
@@ -49,6 +49,26 @@ class SceneManager:
             mesh = pv.read(file_path)
             mesh = mesh.clean()
             
+            # Application of URDF orientation (rotation) if requested
+            if any(r != 0 for r in orientation_rpy):
+                # Build rotation transform (Extrinsic XYZ / Intrinsic ZYX convention)
+                r, p, y = orientation_rpy
+                # PyVista's transform expects degrees if using rotate_x etc, 
+                # but we can build a 4x4 matrix from radians.
+                import math
+                cos_r, sin_r = math.cos(r), math.sin(r)
+                cos_p, sin_p = math.cos(p), math.sin(p)
+                cos_y, sin_y = math.cos(y), math.sin(y)
+                
+                Rx = np.array([[1,0,0],[0,cos_r,-sin_r],[0,sin_r,cos_r]])
+                Ry = np.array([[cos_p,0,sin_p],[0,1,0],[-sin_p,0,cos_p]])
+                Rz = np.array([[cos_y,-sin_y,0],[sin_y,cos_y,0],[0,0,1]])
+                R = Rz @ Ry @ Rx # URDF convention
+                
+                T = np.eye(4)
+                T[:3, :3] = R
+                mesh.transform(T, inplace=True)
+
             # REMOVED: Automatic URDF scaling for display. 
             # We now show the mesh at normalized scale 1.0.
                 

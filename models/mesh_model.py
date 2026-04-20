@@ -14,6 +14,8 @@ class MeshModel:
     file_path: str
     shapes: list = field(default_factory=list)   # list[BaseShape]
     urdf_scale: list[float] = field(default_factory=lambda: [1.0, 1.0, 1.0])
+    urdf_origin_xyz: list[float] = field(default_factory=lambda: [0.0, 0.0, 0.0])
+    urdf_origin_rpy: list[float] = field(default_factory=lambda: [0.0, 0.0, 0.0])
     source: str = "manual"  # "manual" or "urdf"
 
     @property
@@ -46,6 +48,8 @@ class MeshModel:
             "file_path": self.file_path,
             "shapes": [s.to_dict() for s in self.shapes],
             "urdf_scale": self.urdf_scale,
+            "urdf_origin_xyz": self.urdf_origin_xyz,
+            "urdf_origin_rpy": self.urdf_origin_rpy,
             "source": self.source,
         }
 
@@ -54,6 +58,8 @@ class MeshModel:
         obj = cls(
             file_path=d["file_path"],
             urdf_scale=d.get("urdf_scale", [1.0, 1.0, 1.0]),
+            urdf_origin_xyz=d.get("urdf_origin_xyz", [0.0, 0.0, 0.0]),
+            urdf_origin_rpy=d.get("urdf_origin_rpy", [0.0, 0.0, 0.0]),
             source=d.get("source", "manual")
         )
         for sd in d.get("shapes", []):

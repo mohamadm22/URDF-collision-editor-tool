@@ -78,10 +78,12 @@ def generate_collision_urdf(
             s = copy.deepcopy(shape)
             
             # Export Rule: Multiply position by original URDF visual scale (sx, sy, sz)
+            # and add back the original URDF visual origin.
             # This ensures the collision origin remains aligned with the visual mesh in URDF space.
-            s.position[0] *= sx
-            s.position[1] *= sy
-            s.position[2] *= sz
+            vx, vy, vz = matched_mesh.urdf_origin_xyz
+            s.position[0] = (s.position[0] * sx) + vx
+            s.position[1] = (s.position[1] * sy) + vy
+            s.position[2] = (s.position[2] * sz) + vz
             
             # Additional geometry scaling for primitives
             if isinstance(s, BoxShape):

@@ -68,6 +68,8 @@ class FileController(QObject):
             mesh = MeshModel(
                 file_path=path,
                 urdf_scale=data["scale"],
+                urdf_origin_xyz=data["origin_xyz"],
+                urdf_origin_rpy=data["origin_rpy"],
                 source="urdf"
             )
             self.state.meshes.append(mesh)
@@ -139,6 +141,20 @@ class FileController(QObject):
                 if any(isinstance(s, StlShape) and s.stl_path == path for s in mesh_model.shapes):
                     continue
 
+                v_scale = mesh_model.urdf_scale
+                v_origin_xyz = mesh_model.urdf_origin_xyz
+                
+                # Normalize position: display_pos = (urdf_coll_pos - visual_urdf_pos) / visual_scale
+                # This ensures the collision remains relative to the visual mesh base.
+                display_pos = []
+                for i in range(3):
+                    offset = s_data["origin_xyz"][i] - v_origin_xyz[i]
+                    if v_scale[i] != 0:
+                        display_pos.append(offset / v_scale[i])
+                    else:
+                        display_pos.append(offset)
+                
+
                 stl_shape = StlShape(
                     name=f"STL_{os.path.basename(path)}",
                     stl_path=path,
@@ -146,7 +162,7 @@ class FileController(QObject):
                     urdf_visual_scale=mesh_model.urdf_scale,
                     scale=[1.0, 1.0, 1.0] # Default user scale
                 )
-                stl_shape.position = s_data["origin_xyz"]
+                stl_shape.position = display_pos
                 rpy_rad = s_data["origin_rpy"]
                 stl_shape.orientation_deg = [math.degrees(r) for r in rpy_rad]
                 

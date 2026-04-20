@@ -38,10 +38,24 @@ def extract_meshes_from_urdf(urdf_path: str, package_root: Optional[str] = None)
 
         resolved_path = _resolve_path(raw_path, urdf_dir, package_root, inferred_pkg_path)
 
+        # Extract visual origin
+        visual_tag = mesh_tag.xpath("ancestor::visual")[0]
+        origin_tag = visual_tag.find("origin")
+        v_xyz = [0.0, 0.0, 0.0]
+        v_rpy = [0.0, 0.0, 0.0]
+        if origin_tag is not None:
+            try:
+                v_xyz = [float(s) for s in origin_tag.get("xyz", "0 0 0").split()]
+                v_rpy = [float(s) for s in origin_tag.get("rpy", "0 0 0").split()]
+            except ValueError:
+                pass
+
         results.append({
             "raw_path": raw_path,
             "resolved_path": resolved_path,
             "scale": scale,
+            "origin_xyz": v_xyz,
+            "origin_rpy": v_rpy,
             "filename": os.path.basename(raw_path),
             "is_resolved": resolved_path is not None and os.path.exists(resolved_path)
         })
