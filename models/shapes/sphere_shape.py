@@ -30,5 +30,7 @@ class SphereShape(BaseShape):
     def to_pyvista_mesh(self):
         # Sphere has no orientation (it's symmetric) but we still apply
         # the position translation via _apply_transform
-        mesh = pv.Sphere(radius=self.radius, center=(0, 0, 0), theta_resolution=24, phi_resolution=24)
-        return self._apply_transform(mesh)
+        return self._apply_transform(self._create_raw_mesh())
+
+    def _create_raw_mesh(self):
+        return pv.Sphere(radius=self.radius, center=(0, 0, 0), theta_resolution=24, phi_resolution=24)

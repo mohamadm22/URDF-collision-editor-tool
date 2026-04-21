@@ -16,7 +16,11 @@ from PyQt6.QtWidgets import QApplication
 from PyQt6.QtCore import Qt
 from PyQt6.QtGui import QFont
 from views.main_window import MainWindow
+import vtk
 
+# Suppress VTK output window and warnings
+vtk_out = vtk.vtkStringOutputWindow()
+vtk.vtkOutputWindow.SetInstance(vtk_out)
 
 def main():
     # High-DPI support

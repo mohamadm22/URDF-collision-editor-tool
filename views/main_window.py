@@ -9,7 +9,7 @@ from PyQt6.QtWidgets import (
     QPushButton, QLabel, QStatusBar, QFileDialog, QMessageBox,
     QProgressDialog, QMenuBar,
 )
-from PyQt6.QtCore import Qt, QThread, pyqtSignal, QObject
+from PyQt6.QtCore import Qt, QThread, pyqtSignal, QObject, QTimer
 from PyQt6.QtGui import QAction, QFont, QKeySequence, QShortcut
 
 from pyvistaqt import BackgroundPlotter
@@ -27,11 +27,30 @@ from views.property_panel import PropertyPanel
 from controllers.robot_controller import RobotController
 from visualization.robot_scene_manager import RobotSceneManager
 from views.robot_viewer_panel import RobotViewerPanel
+from utils.collision_checker import CollisionChecker
 from pyvistaqt import QtInteractor
 
 
 
-# ─────────────────────────────────────────────────────────────────────────────
+class CollisionWorker(QThread):
+    """Background worker for heavy geometry collision checks."""
+    result_ready = pyqtSignal(set)
+
+    def __init__(self, checker, meshes: dict):
+        super().__init__()
+        self.checker = checker
+        self.meshes = meshes
+
+    def run(self):
+        try:
+            colliding = self.checker.check_all(self.meshes)
+            self.result_ready.emit(colliding)
+        except Exception as e:
+            print(f"[DEBUG] CollisionWorker Error: {e}")
+            self.result_ready.emit(set())
+
+# from utils.debug_utils import trace_class_methods
+
 class MainWindow(QMainWindow):
     """Root application window."""
 
@@ -46,9 +65,9 @@ class MainWindow(QMainWindow):
 
         # ── Controllers ────────────────────────────────────────────────
         self._file_ctrl = FileController(self._state, parent=self)
-        self._shape_ctrl = ShapeController(self._state)
+        self._shape_ctrl = ShapeController(self._state, parent=self)
         self._export_ctrl = ExportController(self._state)
-        self._robot_ctrl = RobotController(parent=self)
+        self._robot_ctrl = RobotController(self._state, parent=self)
 
         # ── State for selected shape ───────────────────────────────────
         self._selected_shape_id: str | None = None
@@ -58,6 +77,13 @@ class MainWindow(QMainWindow):
         self._build_central()
         self._build_status_bar()
         self._apply_stylesheet()
+        
+        # ── Collision Detection Logic ──────────────────────────────────
+        self._collision_checker = CollisionChecker()
+        self._collision_check_timer = QTimer()
+        self._collision_check_timer.setSingleShot(True)
+        self._collision_check_timer.setInterval(300) # ms
+        self._collision_check_timer.timeout.connect(self._run_collision_check)
 
         # ── Wire signals ───────────────────────────────────────────────
         self._wire_signals()
@@ -219,14 +245,20 @@ class MainWindow(QMainWindow):
         # PropertyPanel → ShapeController
         self._prop_panel.shape_updated.connect(self._on_shape_params_changed)
 
+        # ShapeController → RobotController (live updates)
+        self._shape_ctrl.shapes_changed.connect(self._robot_ctrl.refresh_collision_overlay)
+
         # RobotController signals
         self._robot_ctrl.robot_loaded.connect(self._on_robot_loaded)
         self._robot_ctrl.robot_load_failed.connect(self._on_robot_load_failed)
         self._robot_ctrl.robot_cleared.connect(self._robot_scene.clear_robot)
         self._robot_ctrl.package_root_required.connect(self._on_robot_package_root_required)
+        self._robot_ctrl.collision_overlay_ready.connect(self._on_collision_overlay_ready)
         
-        # RobotViewerPanel → RobotController
+        # RobotViewerPanel → RobotController / SceneManager
         self._robot_panel.frame_changed.connect(self._robot_ctrl.set_base_frame)
+        self._robot_panel.visual_toggled.connect(self._robot_scene.set_visual_visible)
+        self._robot_panel.collision_toggled.connect(self._robot_scene.set_collision_visible)
 
     # ──────────────────────────────────────────────────────────────────
     # File slots                                                         #
@@ -277,7 +309,12 @@ class MainWindow(QMainWindow):
     # Mesh changed (file navigation)                                     #
     # ──────────────────────────────────────────────────────────────────
 
-    def _on_mesh_changed(self, mesh: MeshModel, index: int, total: int):
+    def _on_mesh_changed(self, mesh: MeshModel = None, index: int = None, total: int = None):
+        if mesh is None:
+            if not self._state.meshes: return
+            index = self._state.current_index
+            total = len(self._state.meshes)
+            mesh = self._state.meshes[index]
         self._selected_shape_id = None
 
         # Update file panel
@@ -359,8 +396,16 @@ class MainWindow(QMainWindow):
         self._run_urdf_import(path)
 
     def _run_urdf_import(self, urdf_path: str, pkg_root: str = None):
-        res = self._file_ctrl.import_urdf_meshes(urdf_path, pkg_root)
-        
+        # print(f"[TRACE] MainWindow._run_urdf_import START")
+        # Temporarily disconnect to avoid multiple refreshes during bulk import
+        self._file_ctrl.mesh_changed.disconnect(self._on_mesh_changed)
+        try:
+            res = self._file_ctrl.import_urdf_meshes(urdf_path, pkg_root)
+        finally:
+            self._file_ctrl.mesh_changed.connect(self._on_mesh_changed)
+            # Re-enable UI refresh and trigger it once
+            self._on_mesh_changed()
+
         if res.get("error"):
             QMessageBox.critical(self, "URDF Import Error", res["error"])
             return
@@ -398,9 +443,43 @@ class MainWindow(QMainWindow):
             QMessageBox.information(self, "Import Summary", msg)
             
         # Also trigger Robot Visual Viewer
-        self._robot_ctrl.load_urdf(urdf_path)
+        self._robot_ctrl.load_urdf(urdf_path, pkg_root)
+        # print(f"[TRACE] MainWindow._run_urdf_import END")
+
+    def _on_collision_overlay_ready(self, overlay):
+        # print(f"[TRACE] MainWindow._on_collision_overlay_ready")
+        self._robot_scene.render_collision_layer(overlay)
+        # Trigger debounced collision check
+        self._collision_check_timer.start()
+
+    def _run_collision_check(self):
+        """Starts background narrow-phase collision detection."""
+        meshes = self._robot_scene.get_collision_meshes()
+        if not meshes:
+            self._robot_scene.highlight_collisions(set())
+            return
+            
+        self._status.showMessage("Checking for collisions in background...", 5000)
+        
+        # Avoid concurrent worker runs
+        if hasattr(self, "_collision_worker") and self._collision_worker.isRunning():
+            return
+
+        self._collision_worker = CollisionWorker(self._collision_checker, meshes)
+        self._collision_worker.result_ready.connect(self._on_collision_check_finished)
+        self._collision_worker.start()
+
+    def _on_collision_check_finished(self, colliding_links: set):
+        """Callback from background worker."""
+        self._robot_scene.highlight_collisions(colliding_links)
+        
+        if colliding_links:
+            self._status.showMessage(f"⚠️ Collision detected between {len(colliding_links)} links!", 5000)
+        else:
+            self._status.showMessage("Collision check: OK", 3000)
 
     def _on_robot_loaded(self, model: RobotModel, transforms: dict):
+        # print(f"[TRACE] MainWindow._on_robot_loaded")
         self._robot_scene.render_robot(model, transforms)
         self._robot_panel.update_model(model)
         self._robot_panel.setVisible(True)

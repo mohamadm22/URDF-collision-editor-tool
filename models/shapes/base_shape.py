@@ -109,6 +109,10 @@ class BaseShape(ABC):
     def to_pyvista_mesh(self):
         """Return a pyvista.PolyData representing this shape in world space."""
 
+    @abstractmethod
+    def _create_raw_mesh(self):
+        """Return a pyvista.PolyData at origin without transforms."""
+
     def _apply_transform(self, mesh):
         """Translate mesh to world position (rotation handled by subclass)."""
         import pyvista as pv

@@ -3,13 +3,15 @@ RobotViewerPanel — a dockable panel for displaying the robot visual model.
 """
 
 from __future__ import annotations
-from PyQt6.QtWidgets import QDockWidget, QWidget, QVBoxLayout, QLabel, QComboBox, QHBoxLayout
+from PyQt6.QtWidgets import QDockWidget, QWidget, QVBoxLayout, QLabel, QComboBox, QHBoxLayout, QCheckBox
 from PyQt6.QtCore import Qt, pyqtSignal
 from models.robot_model import RobotModel
 
 class RobotViewerPanel(QDockWidget):
     """Dockable panel with its own 3D viewport for robot visualization."""
     frame_changed = pyqtSignal(str)
+    visual_toggled = pyqtSignal(bool)
+    collision_toggled = pyqtSignal(bool)
 
     def __init__(self, plotter_widget, parent=None):
         super().__init__("🤖 Robot Visual Viewer", parent)
@@ -34,6 +36,20 @@ class RobotViewerPanel(QDockWidget):
         self._frame_combo.currentTextChanged.connect(self.frame_changed.emit)
         frame_row.addWidget(self._frame_combo, 1)
         layout.addLayout(frame_row)
+        
+        # Layer Visibility Toggles
+        toggle_row = QHBoxLayout()
+        self._visual_cb = QCheckBox("Visual Meshes")
+        self._visual_cb.setChecked(True)
+        self._visual_cb.toggled.connect(self.visual_toggled.emit)
+        
+        self._collision_cb = QCheckBox("Collision Shapes")
+        self._collision_cb.setChecked(True)
+        self._collision_cb.toggled.connect(self.collision_toggled.emit)
+        
+        toggle_row.addWidget(self._visual_cb)
+        toggle_row.addWidget(self._collision_cb)
+        layout.addLayout(toggle_row)
         
         # 3D Viewport
         self._plotter_widget = plotter_widget

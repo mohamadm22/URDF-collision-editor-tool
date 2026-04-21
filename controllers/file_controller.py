@@ -11,7 +11,7 @@ from models.project_state import ProjectState
 from models.mesh_model import MeshModel
 from models.shapes.stl_shape import StlShape
 from utils.urdf_parser import extract_meshes_from_urdf, extract_collision_shapes_from_urdf
-
+from utils.debug_utils import trace_class_methods
 
 class FileController(QObject):
     # Emitted when the active mesh changes: (MeshModel, index, total)
@@ -201,6 +201,7 @@ class FileController(QObject):
     def _emit_changed(self):
         mesh = self.state.current_mesh
         if mesh is not None:
+            print(f"[TRACE] FileController.mesh_changed EMIT")
             self.mesh_changed.emit(
                 mesh,
                 self.state.current_index,

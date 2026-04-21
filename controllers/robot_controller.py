@@ -1,7 +1,11 @@
+import os
 import numpy as np
 from PyQt6.QtCore import QObject, pyqtSignal
 from models.robot_model import RobotModel, RobotVisualOrigin
+from models.project_state import ProjectState
+from models.collision_mapping import LinkCollisionData, CollisionOverlayData
 from utils.urdf_visual_parser import parse_urdf_visuals
+# from utils.debug_utils import trace_class_methods
 
 class RobotController(QObject):
     """Orchestrates robot URDF parsing and triggers visualization signals."""
@@ -10,9 +14,11 @@ class RobotController(QObject):
     robot_load_failed = pyqtSignal(str)
     robot_cleared = pyqtSignal()
     package_root_required = pyqtSignal(str) # Payload: urdf_path
+    collision_overlay_ready = pyqtSignal(object) # Payload: CollisionOverlayData
 
-    def __init__(self, parent=None):
+    def __init__(self, state: ProjectState, parent=None):
         super().__init__(parent)
+        self._state = state
         self._current_model: RobotModel | None = None
         self._selected_frame: str = "map"
 
@@ -56,10 +62,58 @@ class RobotController(QObject):
     def _refresh_visualization(self):
         if not self._current_model:
             return
+        
+        # print(f"[TRACE] RobotController._refresh_visualization - Frame: {self._selected_frame}")
             
         # 1. Compute global transforms relative to selected frame
         transforms = self._compute_global_transforms(self._current_model, self._selected_frame)
         self.robot_loaded.emit(self._current_model, transforms)
+
+        # 2. Re-build and emit collision overlay (passing transforms to avoid re-computation)
+        overlay = self._build_collision_overlay(transforms)
+        if overlay:
+            self.collision_overlay_ready.emit(overlay)
+
+    def refresh_collision_overlay(self):
+        """Called externally when collision shapes change in ProjectState."""
+        if not self._current_model:
+            return
+
+        # print(f"[TRACE] RobotController.refresh_collision_overlay")
+        transforms = self._compute_global_transforms(self._current_model, self._selected_frame)
+        overlay = self._build_collision_overlay(transforms)
+        if overlay:
+            self.collision_overlay_ready.emit(overlay)
+
+    def _build_collision_overlay(self, transforms: dict) -> CollisionOverlayData | None:
+        """Constructs the overlay payload by mapping MeshModels to RobotLinks."""
+        if not self._current_model or not self._state.meshes:
+            return None
+
+        # Build basename -> MeshModel lookup
+        mesh_lookup = {os.path.basename(m.file_path): m for m in self._state.meshes}
+
+        # Build link -> collision data mapping
+        link_collisions = {}
+        for link_name, link_model in self._current_model.links.items():
+            for visual in link_model.visuals:
+                if visual.type == "mesh" and visual.mesh_filename:
+                    matched = mesh_lookup.get(visual.mesh_filename)
+                    if matched and matched.shapes:
+                        link_collisions[link_name] = LinkCollisionData(
+                            link_name=link_name,
+                            shapes=matched.shapes,
+                            visual_scale=visual.scale,
+                            visual_origin=visual.origin,
+                            mesh_urdf_origin_xyz=matched.urdf_origin_xyz,
+                            mesh_urdf_origin_rpy=matched.urdf_origin_rpy,
+                            mesh_urdf_scale=matched.urdf_scale,
+                        )
+
+        return CollisionOverlayData(
+            link_collisions=link_collisions,
+            global_transforms=transforms
+        )
 
     def _compute_global_transforms(self, model: RobotModel, base_frame: str) -> dict:
         """Calculates 4x4 global transforms for all links relative to base_frame."""

@@ -36,12 +36,14 @@ class CylinderShape(BaseShape):
         return f'<cylinder radius="{self.radius:.6f}" length="{self.length:.6f}"/>'
 
     def to_pyvista_mesh(self):
+        return self._apply_transform(self._create_raw_mesh())
+
+    def _create_raw_mesh(self):
         # PyVista cylinder: axis along Z by default, centred at origin
-        mesh = pv.Cylinder(
+        return pv.Cylinder(
             center=(0, 0, 0),
             direction=(0, 0, 1),
             radius=self.radius,
             height=self.length,
             resolution=36,
         )
-        return self._apply_transform(mesh)

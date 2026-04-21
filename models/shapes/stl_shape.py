@@ -48,15 +48,20 @@ class StlShape(BaseShape):
         return f'<mesh filename="{self.raw_urdf_path}" scale="{s[0]:.6f} {s[1]:.6f} {s[2]:.6f}"/>'
 
     def to_pyvista_mesh(self):
+        mesh = self._create_raw_mesh()
+        if mesh.n_points == 0:
+            return mesh
+        return self._apply_transform(mesh)
+
+    def _create_raw_mesh(self):
         if not self.stl_path or not os.path.exists(self.stl_path):
             return pv.PolyData()
             
         try:
             mesh = pv.read(self.stl_path)
-            
             # Display scale is now directly the user scale (scale 1 normalized)
             mesh.scale(self.scale, inplace=True)
-            return self._apply_transform(mesh)
+            return mesh
         except Exception as e:
             print(f"[StlShape] Error loading mesh: {e}")
             return pv.PolyData()

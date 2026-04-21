@@ -36,11 +36,13 @@ class BoxShape(BaseShape):
         return f'<box size="{self.size_x:.6f} {self.size_y:.6f} {self.size_z:.6f}"/>'
 
     def to_pyvista_mesh(self):
-        mesh = pv.Box(
+        return self._apply_transform(self._create_raw_mesh())
+
+    def _create_raw_mesh(self):
+        return pv.Box(
             bounds=(
                 -self.size_x / 2, self.size_x / 2,
                 -self.size_y / 2, self.size_y / 2,
                 -self.size_z / 2, self.size_z / 2,
             )
         )
-        return self._apply_transform(mesh)

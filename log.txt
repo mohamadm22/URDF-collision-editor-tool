@@ -1,0 +1,22 @@
+[TRACE] MainWindow._run_urdf_import START
+[TRACE] FileController.mesh_changed EMIT
+[TRACE] RobotController._refresh_visualization - Frame: world
+[TRACE] MainWindow._on_robot_loaded
+[TRACE] RobotViewerPanel.update_model
+[TRACE] MainWindow._on_collision_overlay_ready
+[TRACE] MainWindow._run_urdf_import END
+2026-04-22 00:16:08.081 (  24.314s) [    7259F2FFF640]            vtkMath.cxx:778   WARN| vtkMath::Jacobi: Error extracting eigenfunctions
+2026-04-22 00:16:08.141 (  24.373s) [    7259F2FFF640]            vtkMath.cxx:778   WARN| vtkMath::Jacobi: Error extracting eigenfunctions
+2026-04-22 00:16:08.421 (  24.654s) [    7259F2FFF640]            vtkMath.cxx:778   WARN| vtkMath::Jacobi: Error extracting eigenfunctions
+2026-04-22 00:16:08.477 (  24.709s) [    7259F2FFF640]            vtkMath.cxx:778   WARN| vtkMath::Jacobi: Error extracting eigenfunctions
+2026-04-22 00:16:09.161 (  25.393s) [    7259F2FFF640]            vtkMath.cxx:778   WARN| vtkMath::Jacobi: Error extracting eigenfunctions
+2026-04-22 00:16:09.356 (  25.588s) [    7259F2FFF640]            vtkMath.cxx:778   WARN| vtkMath::Jacobi: Error extracting eigenfunctions
+2026-04-22 00:16:09.878 (  26.111s) [    7259F2FFF640]            vtkMath.cxx:778   WARN| vtkMath::Jacobi: Error extracting eigenfunctions
+2026-04-22 00:16:10.942 (  27.174s) [    7259F2FFF640]            vtkMath.cxx:778   WARN| vtkMath::Jacobi: Error extracting eigenfunctions
+2026-04-22 00:16:11.977 (  28.209s) [    7259F2FFF640]            vtkMath.cxx:778   WARN| vtkMath::Jacobi: Error extracting eigenfunctions
+2026-04-22 00:16:12.733 (  28.966s) [    7259F2FFF640]            vtkMath.cxx:778   WARN| vtkMath::Jacobi: Error extracting eigenfunctions
+2026-04-22 00:16:13.494 (  29.726s) [    7259F2FFF640]            vtkMath.cxx:778   WARN| vtkMath::Jacobi: Error extracting eigenfunctions
+2026-04-22 00:16:13.551 (  29.783s) [    7259F2FFF640]            vtkMath.cxx:778   WARN| vtkMath::Jacobi: Error extracting eigenfunctions
+2026-04-22 00:16:14.916 (  31.149s) [    7259F2FFF640]            vtkMath.cxx:778   WARN| vtkMath::Jacobi: Error extracting eigenfunctions
+2026-04-22 00:16:14.973 (  31.206s) [    7259F2FFF640]            vtkMath.cxx:778   WARN| vtkMath::Jacobi: Error extracting eigenfunctions
+Killed

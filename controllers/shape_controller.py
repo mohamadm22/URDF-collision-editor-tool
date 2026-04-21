@@ -4,6 +4,7 @@ Each mutating operation saves an undo snapshot before modifying state.
 """
 
 from __future__ import annotations
+from PyQt6.QtCore import QObject, pyqtSignal
 from models.project_state import ProjectState
 from models.shapes import CylinderShape, BoxShape, SphereShape, SHAPE_REGISTRY
 
@@ -13,9 +14,13 @@ _SHAPE_DEFAULTS = {
     "SphereShape": SphereShape,
 }
 
+# from utils.debug_utils import trace_class_methods
 
-class ShapeController:
-    def __init__(self, state: ProjectState):
+class ShapeController(QObject):
+    shapes_changed = pyqtSignal()   # Emitted after any mutation
+
+    def __init__(self, state: ProjectState, parent=None):
+        super().__init__(parent)
         self.state = state
 
     # ------------------------------------------------------------------ #
@@ -38,6 +43,7 @@ class ShapeController:
         count = sum(1 for s in mesh.shapes if type(s).__name__ == shape_type) + 1
         shape.name = f"{shape.name}_{count}"
         mesh.add_shape(shape)
+        self.shapes_changed.emit()
         return shape.id
 
     # ------------------------------------------------------------------ #
@@ -50,6 +56,7 @@ class ShapeController:
             return
         self.state.push_undo()
         mesh.remove_shape(shape_id)
+        self.shapes_changed.emit()
 
     # ------------------------------------------------------------------ #
     # Update                                                               #
@@ -71,6 +78,8 @@ class ShapeController:
         for key, value in params.items():
             if hasattr(shape, key):
                 setattr(shape, key, value)
+        
+        self.shapes_changed.emit()
         return True
 
     # ------------------------------------------------------------------ #
@@ -78,7 +87,11 @@ class ShapeController:
     # ------------------------------------------------------------------ #
 
     def undo(self) -> bool:
-        return self.state.undo()
+        res = self.state.undo()
+        if res: self.shapes_changed.emit()
+        return res
 
     def redo(self) -> bool:
-        return self.state.redo()
+        res = self.state.redo()
+        if res: self.shapes_changed.emit()
+        return res
