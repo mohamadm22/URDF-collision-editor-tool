@@ -269,7 +269,7 @@ class RobotSceneManager:
             color = "#ff2222" if is_colliding else "#00cc55"
             opacity = 0.55 if is_colliding else 0.35
             
-            actor.GetProperty().SetColor(pv.Color(color))
+            actor.GetProperty().SetColor(pv.Color(color).float_rgb)
             actor.GetProperty().SetOpacity(opacity)
             
         self.plotter.render()

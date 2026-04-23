@@ -47,6 +47,7 @@ class RobotController(QObject):
                 return
 
             self._refresh_visualization()
+            # self.refresh_collision_overlay()
             
         except Exception as e:
             import traceback
