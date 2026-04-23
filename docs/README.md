@@ -14,6 +14,8 @@ A professional Python desktop application for creating and editing URDF collisio
 - **URDF Export**: Generates XML collision snippets.
 - **URDF Collision Injection**: Automatically injects collision primitives and STL meshes into an existing URDF file, matching links by mesh path and respecting original visual scales.
 - **Smart Mesh Auto-Import**: Select a URDF and the program automatically loads all associated visual and collision STL meshes. Includes smart path resolution for ROS `package://` protocols.
+- **Integrated Collision Validation**: Real-time feedback in the robot viewer. Collision shapes are color-coded (Green/Red) based on whether they intersect with other links in the robot assembly.
+- **Robot Assembly Viewer**: A dedicated viewport showing the full assembled robot based on its URDF kinematics, allowing for multi-layer visualization (Visual Meshes and Collision Shapes).
 - **Full Project Persistence**: Saves and loads the entire workspace (STLs, shapes, transforms, and linked URDF) to JSON.
 
 ---

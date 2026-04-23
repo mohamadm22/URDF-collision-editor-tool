@@ -1,7 +1,9 @@
 import os
 import pyvista as pv
 import numpy as np
+import vtk
 from typing import Optional, Dict, List, Set
+from PyQt6.QtCore import QObject, pyqtSignal, QTimer
 from models.robot_model import RobotModel, RobotVisualOrigin, RobotLinkVisual
 from models.collision_mapping import CollisionOverlayData, LinkCollisionData
 from models.shapes.box_shape import BoxShape
@@ -9,14 +11,18 @@ from models.shapes.cylinder_shape import CylinderShape
 from models.shapes.sphere_shape import SphereShape
 from models.shapes.stl_shape import StlShape
 
-class RobotSceneManager:
+class RobotSceneManager(QObject):
     """Manages robot visualization in a dedicated plotter."""
+    link_single_clicked = pyqtSignal(str)   # link_name
+    link_double_clicked = pyqtSignal(str)   # link_name
 
     def __init__(self, plotter):
+        super().__init__()
         self.plotter = plotter
         # Layered actor storage
         self._visual_actors: Dict[str, pv.Actor] = {}
         self._collision_actors: Dict[str, pv.Actor] = {}
+        self._actor_to_link: Dict[int, str] = {} # id(actor) -> link_name
         
         # Mesh cache to prevent redundant disk I/O
         self._mesh_cache: Dict[str, pv.PolyData] = {}
@@ -27,6 +33,14 @@ class RobotSceneManager:
         
         # Collision detection state
         self._colliding_links: Set[str] = set()
+        
+        # Picking / Click state
+        self._highlighted_link: str | None = None
+        self._pending_pick_link: str | None = None
+        self._click_timer = QTimer()
+        self._click_timer.setSingleShot(True)
+        self._click_timer.setInterval(220) # ms double-click window
+        self._click_timer.timeout.connect(self._fire_single_click)
         
         self._configure_plotter()
 
@@ -70,6 +84,7 @@ class RobotSceneManager:
                     )
                     actor.SetVisibility(self._visual_visible)
                     self._visual_actors[actor_id] = actor
+                    self._actor_to_link[id(actor)] = link_name
                     
                 except Exception as e:
                     pass # Quietly skip failed visuals to avoid log flooding
@@ -232,10 +247,13 @@ class RobotSceneManager:
         self.plotter.render()
 
     def clear_visual_layer(self):
+        self._click_timer.stop()
+        self._pending_pick_link = None
         for actor_id in list(self._visual_actors.keys()):
             try: self.plotter.remove_actor(actor_id, render=False)
             except Exception: pass
         self._visual_actors.clear()
+        self._actor_to_link.clear()
 
     def clear_collision_layer(self):
         for actor_id in list(self._collision_actors.keys()):
@@ -292,6 +310,122 @@ class RobotSceneManager:
 
     def reset_camera(self):
         self.plotter.reset_camera()
+        self.plotter.render()
+
+    # ── Picking System ────────────────────────────────────────────────
+
+    def enable_picking(self):
+        """Initializes mesh picking on the robot plotter."""
+        self.plotter.enable_mesh_picking(
+            self._on_pick_callback,
+            use_actor=True,
+            show=False, # We handle our own highlights
+            left_clicking=True
+        )
+        # Separate observer to handle background clicks (misses)
+        self.plotter.iren.add_observer("LeftButtonPressEvent", self._on_left_click_check)
+
+    def _on_left_click_check(self, obj, event):
+        """Checks if a background click occurred to clear highlight."""
+        pos = self.plotter.mouse_position
+        picker = vtk.vtkPropPicker()
+        picker.Pick(pos[0], pos[1], 0, self.plotter.renderer)
+        if picker.GetActor() is None:
+            self.highlight_link(None)
+
+    def _on_pick_callback(self, actor: Optional[pv.Actor]):
+        """Internal callback for VTK picking events."""
+        link_name = self._actor_to_link.get(id(actor))
+        
+        if link_name is None:
+            # Clicked empty space or non-visual actor
+            self._click_timer.stop()
+            self._pending_pick_link = None
+            return
+
+        if self._click_timer.isActive() and self._pending_pick_link == link_name:
+            # Second click on same link within window -> DOUBLE CLICK
+            self._click_timer.stop()
+            self._pending_pick_link = None
+            self.link_double_clicked.emit(link_name)
+        else:
+            # First click -> start timer for SINGLE CLICK
+            self._click_timer.stop()
+            self._pending_pick_link = link_name
+            self._click_timer.start()
+
+    def _fire_single_click(self):
+        """Called when double-click timer expires."""
+        if self._pending_pick_link:
+            self.link_single_clicked.emit(self._pending_pick_link)
+        self._pending_pick_link = None
+
+    # ── Selection Feedback & Focus ───────────────────────────────────
+
+    def highlight_link(self, link_name: str | None):
+        """Visually distinguishes the selected link."""
+        self._highlighted_link = link_name
+        
+        # Batch updates to actor properties
+        for actor_id, actor in self._visual_actors.items():
+            # actor_id is "vis__link_name__i"
+            parts = actor_id.split("__")
+            if len(parts) < 2: continue
+            
+            l_name = parts[1]
+            if l_name == link_name:
+                actor.GetProperty().SetColor(pv.Color("#ffd966").float_rgb) # Gold
+                actor.GetProperty().SetOpacity(1.0)
+            else:
+                actor.GetProperty().SetColor(pv.Color("#a0b0c0").float_rgb) # Default
+                actor.GetProperty().SetOpacity(0.8)
+        
+        self.plotter.render()
+
+    def focus_camera_on_link(self, link_name: str):
+        """Zooms camera to fit all visual actors of the specified link."""
+        target_actors = []
+        for actor_id, actor in self._visual_actors.items():
+            if actor_id.startswith(f"vis__{link_name}__"):
+                target_actors.append(actor)
+        
+        if not target_actors:
+            self.reset_camera()
+            return
+
+        # Compute union bounding box
+        total_bounds = [float('inf'), float('-inf'), float('inf'), float('-inf'), float('inf'), float('-inf')]
+        for actor in target_actors:
+            b = actor.GetBounds() # xmin, xmax, ymin, ymax, zmin, zmax
+            total_bounds[0] = min(total_bounds[0], b[0])
+            total_bounds[1] = max(total_bounds[1], b[1])
+            total_bounds[2] = min(total_bounds[2], b[2])
+            total_bounds[3] = max(total_bounds[3], b[3])
+            total_bounds[4] = min(total_bounds[4], b[4])
+            total_bounds[5] = max(total_bounds[5], b[5])
+        
+        # Compute center and radius
+        center = [
+            (total_bounds[0] + total_bounds[1]) / 2,
+            (total_bounds[2] + total_bounds[3]) / 2,
+            (total_bounds[4] + total_bounds[5]) / 2
+        ]
+        dx, dy, dz = (total_bounds[1]-total_bounds[0]), (total_bounds[3]-total_bounds[2]), (total_bounds[5]-total_bounds[4])
+        radius = max(dx, dy, dz) / 2
+        
+        if radius <= 0:
+            self.reset_camera()
+            return
+
+        # Position camera at an offset
+        self.plotter.camera.focal_point = center
+        self.plotter.camera.position = [
+            center[0],
+            center[1] - radius * 3.5, # Pull back
+            center[2] + radius * 1.5  # Slight elevation
+        ]
+        self.plotter.camera.up = (0, 0, 1)
+        self.plotter.camera.reset_clipping_range()
         self.plotter.render()
 
     def _build_transform_matrix(self, origin: RobotVisualOrigin) -> np.ndarray:

@@ -33,13 +33,15 @@ The project follows a strict separation of concerns using the Model-View-Control
 - `file_controller.py`: Manages loading STLs and navigating between files. Emits signals when the "active" file changes.
 - `shape_controller.py`: Logic for adding, removing, and updating shapes. Each operation pushes a state snapshot to the undo stack.
 - `export_controller.py`: Logic for generating URDF XML strings and saving the full project to JSON.
+- `robot_controller.py`: Computes 4x4 kinematic transforms for the entire robot tree based on URDF joints. Maps collision shapes to links and manages the data flow for the integrated robot viewer.
 
 ### C. View Layer (`views/`)
 - `main_window.py`: Orchestrates all other widgets and initializes the 3D scene.
 - `file_panel.py`: Left sidebar. Lists loaded STL files and highlights the active one.
 - `shape_list_panel.py`: Bottom-middle panel. Shows shapes for the current file with Add/Delete buttons.
 - `property_panel.py`: Right sidebar. Dynamically generates input fields based on the selected shape type.
-- `visualization/scene_manager.py`: The bridge between the Model and the PyVista renderer.
+- `visualization/scene_manager.py`: The bridge between the Model and the PyVista renderer for the *Collision Editor* viewport.
+- `visualization/robot_scene_manager.py`: Dedicated visualization manager for the *Robot Viewer*. Handles multi-layer rendering (Visuals + Collisions) and applies kinematic transforms.
 - `utils/urdf_modifier.py`: Core logic for parsing URDF files, matching meshes to links, and performing XML injection with automatic scaling.
 - `utils/urdf_parser.py`: Parser for automatic mesh discovery from URDF. Implements smart `package://` resolution with heuristics for ROS package sibling directory structures.
 
@@ -56,6 +58,11 @@ The project follows a strict separation of concerns using the Model-View-Control
     - This ensures the UI remains intuitive while preserving the correct alignment in scaled URDF robot descriptions.
 - **Actor Management:** `SceneManager` stores actual `vtkActor` objects (not name strings) to ensure reliable removal and to avoid ghost objects persisting across file switches.
 - **Smart Path Resolution:** The tool intelligently infers ROS package structures. If a URDF is in a `/urdf` folder, it automatically searches for meshes in the sibling `/meshes` folder before prompting the user for manual root paths.
+- **Integrated Collision Validation:**
+    - **AABB Broad Phase:** Quickly culls non-overlapping link pairs.
+    - **VTK Narrow Phase:** Uses `vtkBooleanOperationPolyDataFilter` or `vtkOBBTree` for exact intersection detection.
+    - **Visual Feedback:** Links involved in collisions are highlighted in **Red** in the robot viewer; safe links remain **Green**.
+
 
 ---
 

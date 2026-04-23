@@ -182,6 +182,7 @@ class MainWindow(QMainWindow):
         # ── Scene managers ─────────────────────────────────────────────
         self._scene = SceneManager(self._plotter)
         self._robot_scene = RobotSceneManager(self._robot_plotter)
+        self._robot_scene.enable_picking()
 
     def _build_nav_bar(self) -> QWidget:
         bar = QWidget()
@@ -259,6 +260,17 @@ class MainWindow(QMainWindow):
         self._robot_panel.frame_changed.connect(self._robot_ctrl.set_base_frame)
         self._robot_panel.visual_toggled.connect(self._robot_scene.set_visual_visible)
         self._robot_panel.collision_toggled.connect(self._robot_scene.set_collision_visible)
+        
+        # RobotSceneManager -> RobotController
+        self._robot_scene.link_single_clicked.connect(self._robot_ctrl._on_link_single_clicked)
+        self._robot_scene.link_double_clicked.connect(self._robot_ctrl._on_link_double_clicked)
+        
+        # RobotController -> MainWindow slots
+        self._robot_ctrl.link_selection_requested.connect(self._on_link_selection_requested)
+        self._robot_ctrl.link_focus_requested.connect(self._on_link_focus_requested)
+        
+        # Restoration
+        self._file_panel.file_selected.connect(lambda _: self._robot_scene.highlight_link(None))
 
     # ──────────────────────────────────────────────────────────────────
     # File slots                                                         #
@@ -483,6 +495,7 @@ class MainWindow(QMainWindow):
         self._robot_scene.render_robot(model, transforms)
         self._robot_panel.update_model(model)
         self._robot_panel.setVisible(True)
+        self._robot_scene.highlight_link(None)
         
         if model.load_warnings:
             # Maybe don't show all warnings in a popup if too many, but definitely some feedback
@@ -502,6 +515,18 @@ class MainWindow(QMainWindow):
         root = QFileDialog.getExistingDirectory(self, "Select Package Root Directory")
         if root:
             self._robot_ctrl.load_urdf(urdf_path, root)
+
+    def _on_link_selection_requested(self, index: int, link_name: str):
+        """Called when a mesh is clicked in the Robot Viewer."""
+        self._robot_scene.highlight_link(link_name)
+        self._file_ctrl.navigate_to(index)
+        if link_name:
+            self._status.showMessage(f"Robot link clicked: {link_name}", 3000)
+
+    def _on_link_focus_requested(self, link_name: str):
+        """Called when a mesh is double-clicked in the Robot Viewer."""
+        self._robot_scene.focus_camera_on_link(link_name)
+        self._status.showMessage(f"Focussing on link: {link_name}", 3000)
 
     # ──────────────────────────────────────────────────────────────────
     # Navigation slots                                                   #

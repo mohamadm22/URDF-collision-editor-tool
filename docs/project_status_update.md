@@ -25,11 +25,11 @@ This document summarizes the recent architectural enhancements and feature addit
     - `<sphere radius="r">`
     - `<cylinder radius="r" length="l">`
 - **Multi-Visual Links**: Links with multiple visual elements (e.g., a mesh + a primitive) are now handled correctly.
-
-### 2. Core Architecture Refinement
-- **Kinematic Data Model**: Updated `RobotModel` and added `RobotJointModel` to represent the frame hierarchy.
-- **Transform-Aware Rendering**: `RobotSceneManager` was refactored to apply arbitrary global transforms, enabling instant viewer updates when switching base frames without re-processing meshes.
-- **MVC Integrity**: All kinematic math remains in the controller/utility layers, while the view remains focused on presentation.
+### 4. Integrated Collision Overlay
+- **Dual-Layer Rendering**: Refactored `RobotSceneManager` to support independent "Visual" and "Collision" layers.
+- **URDF-Correct Transforms**: Implemented a complex transform chain that correctly maps collision shapes from normalized editor space to their exact URDF pose, accounting for both URDF visual scales and link kinematics.
+- **Real-Time Highlighting**: Added automatic color-coding for collision shapes (Green = Safe, Red = Colliding) based on inter-link intersection tests.
+- **Incremental Updates**: Optimized the rendering pipeline to use VTK property updates for color changes, avoiding redundant mesh processing and preventing flickering.
 
 ---
 
@@ -61,6 +61,9 @@ The project follows a robust **Model-View-Controller** pattern with two speciali
 - [x] **URDF Primitive Support**: Render box/sphere/cylinder visuals in the robot viewer.
 - [x] **Status Persistence**: Full workspace save/load via JSON.
 - [x] **Normalized Editor Scaling**: Work at scale 1.0; auto-scale on export.
+- [x] **Integrated Collision Overlay**: Render collision shapes on top of the assembled robot.
+- [x] **Real-Time Collision Highlighting**: Automatic red/green feedback for intersecting links.
+- [x] **Visibility Toggles**: Independent control for Visual and Collision layers.
 
 ---
 

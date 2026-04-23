@@ -1,4 +1,7 @@
 # Integrated Collision Visualization & Validation in Robot Viewer
+> [!NOTE]
+> **Status**: ✅ **Implemented**. This document serves as the original design and reference for the dual-layer visualization and collision detection system.
+
 
 Complete implementation plan for extending the Robot Viewer to display collision shapes over visual meshes, detect inter-link collisions, and support live updates from the collision editor.
 
@@ -594,12 +597,12 @@ def highlight_collisions(self, colliding_links: set[str]):
             continue
         
         prop = actor.GetProperty()
-        if link_name in colliding_links:
-            prop.SetColor(1.0, 0.13, 0.13)  # Red
-            prop.SetOpacity(0.55)
-        else:
-            prop.SetColor(0.0, 0.8, 0.33)   # Green
-            prop.SetOpacity(0.35)
+        is_colliding = link_name in colliding_links
+        color = "#ff2222" if is_colliding else "#00cc55"
+        opacity = 0.55 if is_colliding else 0.35
+        
+        prop.SetColor(pv.Color(color).float_rgb)
+        prop.SetOpacity(opacity)
     
     self.plotter.render()
 ```

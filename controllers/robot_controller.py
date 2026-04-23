@@ -15,12 +15,15 @@ class RobotController(QObject):
     robot_cleared = pyqtSignal()
     package_root_required = pyqtSignal(str) # Payload: urdf_path
     collision_overlay_ready = pyqtSignal(object) # Payload: CollisionOverlayData
+    link_selection_requested = pyqtSignal(int, str)   # index into state.meshes, link_name
+    link_focus_requested = pyqtSignal(str)       # link_name for camera
 
     def __init__(self, state: ProjectState, parent=None):
         super().__init__(parent)
         self._state = state
         self._current_model: RobotModel | None = None
         self._selected_frame: str = "map"
+        self._link_to_mesh_index: dict[str, int] = {}
 
     def load_urdf(self, path: str, package_root: str | None = None):
         """Loads a URDF file and builds the robot visual model."""
@@ -75,6 +78,9 @@ class RobotController(QObject):
         if overlay:
             self.collision_overlay_ready.emit(overlay)
 
+        # 3. Build link -> mesh index cache for picking
+        self._build_link_to_mesh_index()
+
     def refresh_collision_overlay(self):
         """Called externally when collision shapes change in ProjectState."""
         if not self._current_model:
@@ -115,6 +121,46 @@ class RobotController(QObject):
             link_collisions=link_collisions,
             global_transforms=transforms
         )
+
+    def _build_link_to_mesh_index(self):
+        """Builds a cache mapping link names to their MeshModel index in state.meshes."""
+        if not self._current_model or not self._state.meshes:
+            self._link_to_mesh_index = {}
+            return
+
+        # Basename lookup for efficiency
+        mesh_lookup = {os.path.basename(m.file_path): i for i, m in enumerate(self._state.meshes)}
+        
+        self._link_to_mesh_index = {}
+        for link_name, link_model in self._current_model.links.items():
+            for visual in link_model.visuals:
+                if visual.type == "mesh" and visual.mesh_filename:
+                    idx = mesh_lookup.get(visual.mesh_filename)
+                    if idx is not None:
+                        # Map the link to the FIRST matching mesh index found
+                        self._link_to_mesh_index[link_name] = idx
+                        break # One mesh per link for selection purposes
+
+    def _on_link_single_clicked(self, link_name: str):
+        """Slot for RobotSceneManager single-click event."""
+        if not link_name: return
+        idx = self._link_to_mesh_index.get(link_name)
+        if idx is not None:
+            self.link_selection_requested.emit(idx, link_name)
+
+    def _on_link_double_clicked(self, link_name: str):
+        """Slot for RobotSceneManager double-click event."""
+        if not link_name: return
+        # Dbl-click always triggers camera focus if the link exists
+        if link_name in self._current_model.links:
+            self.link_focus_requested.emit(link_name)
+
+    def get_link_name_for_index(self, index: int) -> str | None:
+        """Reverse lookup: find a link name that maps to a specific mesh index."""
+        for link_name, idx in self._link_to_mesh_index.items():
+            if idx == index:
+                return link_name
+        return None
 
     def _compute_global_transforms(self, model: RobotModel, base_frame: str) -> dict:
         """Calculates 4x4 global transforms for all links relative to base_frame."""
@@ -163,4 +209,5 @@ class RobotController(QObject):
     def clear(self):
         """Resets the robot visualization."""
         self._current_model = None
+        self._link_to_mesh_index = {}
         self.robot_cleared.emit()
